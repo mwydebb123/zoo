@@ -1,94 +1,110 @@
 #!/usr/bin/env bash
-## Author: SuperManito
-## Modified: 2021-5-24
-## lxk0301已更新jd_zoo.js,移除原jd_zoo.js
-## 添加代理可能无法使用如非必需可以删除
-cat /etc/hosts | grep "raw.githubusercontent.com" -q
-if [ $? -ne 0 ]; then
-  echo "199.232.28.133 raw.githubusercontent.com" >>/etc/hosts
-  echo "199.232.68.133 raw.githubusercontent.com" >>/etc/hosts
-  echo "185.199.108.133 raw.githubusercontent.com" >>/etc/hosts
-  echo "185.199.109.133 raw.githubusercontent.com" >>/etc/hosts
-  echo "185.199.110.133 raw.githubusercontent.com" >>/etc/hosts
-  echo "185.199.111.133 raw.githubusercontent.com" >>/etc/hosts
+
+## 本脚本搬运并模仿 liuqitoday
+dir_shell=/ql/config
+dir_script=/ql/scripts
+config_shell_path=$dir_shell/config.sh
+extra_shell_path=$dir_shell/extra.sh
+code_shell_path=$dir_shell/code.sh
+task_before_shell_path=$dir_shell/task_before.sh
+
+
+# 下载 config.sh
+if [ ! -a "$config_shell_path" ]; then
+    touch $config_shell_path
+fi
+curl -s --connect-timeout 3 https://ghproxy.com/https://raw.githubusercontent.com/Oreomeow/VIP/main/Conf/Qinglong/config.sample.sh > $config_shell_path
+cp $config_shell_path $dir_shell/config.sh
+
+# 判断是否下载成功
+config_size=$(ls -l $config_shell_path | awk '{print $5}')
+if (( $(echo "${config_size} < 100" | bc -l) )); then
+    echo "config.sh 下载失败"
+    exit 0
 fi
 
-##############################  作  者  昵  称  （必填）  ##############################
-# 使用空格隔开
-author_list="Public LongZhuZhu adolf  passerby-b "
 
-##############################  作  者  脚  本  地  址  URL  （必填）  ##############################
-# 例如：https://raw.sevencdn.com/whyour/hundun/master/quanx/jx_nc.js
-# 1.从作者库中随意挑选一个脚本地址，每个作者的地址添加一个即可，无须重复添加
-# 2.将地址最后的 “脚本名称+后缀” 剪切到下一个变量里（my_scripts_list_xxx）
+# 下载 extra.sh
+if [ ! -a "$extra_shell_path" ]; then
+    touch $extra_shell_path
+fi
+curl -s --connect-timeout 3 https://ghproxy.com/https://raw.githubusercontent.com/Oreomeow/VIP/main/Tasks/qlrepo/extra.sh > $extra_shell_path
+cp $extra_shell_path $dir_shell/extra.sh
 
-scripts_base_url_1=https://gitee.com/SuperManito/scripts/raw/master/
-scripts_base_url_2=https://gitee.com/mjf521/longzhuzhu/raw/main/qx/
-scripts_base_url_3=https://gitee.com/mjf521/dust/raw/dust/normal/
-scripts_base_url_4=https://gitee.com/mjf521/dust/raw/dust/member/
-#scripts_base_url_5=https://gitee.com/mjf521/JDDJ/raw/main/
-## 添加更多脚本地址URL示例：scripts_base_url_3=https://raw.sevencdn.com/whyour/hundun/master/quanx/
+# 判断是否下载成功
+extra_size=$(ls -l $extra_shell_path | awk '{print $5}')
+if (( $(echo "${extra_size} < 100" | bc -l) )); then
+    echo "extra.sh 下载失败"
+    exit 0
+fi
 
-##############################  作  者  脚  本  名  称  （必填）  ##############################
-# 将相应作者的脚本填写到以下变量中
-my_scripts_list_1="jd_paopao.js jx_cfdtx.js"
-my_scripts_list_2="jd_half_redrain.js jd_super_redrain.js"
-my_scripts_list_3="jx_jxhb.js jx_star.js jx_superbox.js jx_oppo.js jx_urge.js jx_inter_shop_sign.js jx_shop_follow_sku.js jx_shop_lottery.js jx_pk.js jx_martin.js jx_mi.js jx_newInteraction.js"
-my_scripts_list_4="jx_flp.js jx_oneplus.js jx_pasture.js"
-#my_scripts_list_5="jddj_bean.js jddj_cookie.js"
-##############################  随  机  函  数  ##############################
-rand() {
-  min=$1
-  max=$(($2 - $min + 1))
-  num=$(cat /proc/sys/kernel/random/uuid | cksum | awk -F ' ' '{print $1}')
-  echo $(($num % $max + $min))
-}
-cd ${ShellDir}
-index=1
-for author in $author_list; do
-  ##  echo -e "开始下载 $author 的活动脚本："
-  echo -e "开始下载第三方活动脚本："
-  echo -e ''
-  # 下载my_scripts_list中的每个js文件，重命名增加前缀"作者昵称_"，增加后缀".new"
-  eval scripts_list=\$my_scripts_list_${index}
-  #echo $scripts_list
-  eval url_list=\$scripts_base_url_${index}
-  #echo $url_list
-  for js in $scripts_list; do
-    eval url=$url_list$js
-    echo $url
-    eval name=$js
-    echo $name
-    wget -q --no-check-certificate $url -O scripts/$name.new
+# 授权
+chmod 755 $extra_shell_path
 
-    # 如果上一步下载没问题，才去掉后缀".new"，如果上一步下载有问题，就保留之前正常下载的版本
-    # 随机添加个cron到crontab.list
-    if [ $? -eq 0 ]; then
-      mv -f scripts/$name.new scripts/$name
-      echo -e "更新 $name 完成...\n"
-      croname=$(echo "$name" | awk -F\. '{print $1}')
-      script_date=$(cat scripts/$name | grep "http" | awk '{if($1~/^[0-59]/) print $1,$2,$3,$4,$5}' | sort | uniq | head -n 1)
-      if [ -z "${script_date}" ]; then
-        cron_min=$(rand 1 59)
-        cron_hour=$(rand 7 9)
-        [ $(grep -c "$croname" ${ListCron}) -eq 0 ] && sed -i "/hangup/a${cron_min} ${cron_hour} * * * bash /opt/jd/jd.sh $croname" ${ListCron}
-      else
-        [ $(grep -c "$croname" ${ListCron}) -eq 0 ] && sed -i "/hangup/a${script_date} bash /opt/jd/jd.sh $croname" ${ListCron}
-      fi
-    else
-      [ -f scripts/$name.new ] && rm -f scripts/$name.new
-      echo -e "更新 $name 失败，使用上一次正常的版本...\n"
-    fi
-  done
-  index=$(($index + 1))
-done
+# extra.sh 预设仓库及默认拉取仓库设置
+echo -e "（1）panghu999\n（2）JDHelloWorld\n（3）he1pu\n（4）shufflewzc"
+echo -n "输入你想拉取的仓库编号(默认为 4):"
+read -r defaultNum
+defaultNum=${defaultNum:-'4'}
+sed -i "s/\$default4/\$default$defaultNum/g" $extra_shell_path
 
-##############################  删  除  失  效  的  活  动  脚  本  ##############################
-## 删除旧版本失效的活动示例： rm -rf ${ScriptsDir}/jd_test.js
- rm -rf ${ScriptsDir}/jd_entertainment.js
- rm -rf ${ScriptsDir}/jd_skyworth.js
- rm -rf ${ScriptsDir}/jd_xmf.js
- rm -rf ${ScriptsDir}/adolf_pk.js
-# rm -rf ${ScriptsDir}/jd_shop_follow_sku.js
- rm -rf ${ScriptsDir}/jd_shop_followsku.js
- rm -rf ${ScriptsDir}/jddj_*
+# 将 extra.sh 添加到定时任务
+if [ "$(grep -c extra /ql/config/crontab.list)" = 0 ]; then
+    echo "开始添加 task ql extra"
+    # 获取token
+    token=$(cat /ql/config/auth.json | jq --raw-output .token)
+    curl -s -H 'Accept: application/json' -H "Authorization: Bearer $token" -H 'Content-Type: application/json;charset=UTF-8' -H 'Accept-Language: zh-CN,zh;q=0.9' --data-binary '{"name":"初始化任务","command":"ql extra","schedule":"15 0-23/4 * * *"}' --compressed 'http://127.0.0.1:5700/api/crons?t=1624782068473'
+fi
+
+
+# 下载 code.sh
+if [ ! -a "$code_shell_path" ]; then
+    touch $code_shell_path
+fi
+curl -s --connect-timeout 3 https://ghproxy.com/https://raw.githubusercontent.com/Oreomeow/VIP/main/Scripts/sh/Helpcode2.8/code.sh > $code_shell_path
+cp $code_shell_path $dir_shell/code.sh
+
+# 判断是否下载成功
+code_size=$(ls -l $code_shell_path | awk '{print $5}')
+if (( $(echo "${code_size} < 100" | bc -l) )); then
+    echo "code.sh 下载失败"
+    exit 0
+fi
+
+# 授权
+chmod 755 $code_shell_path
+
+# code.sh 预设仓库及默认调用仓库设置
+echo -e "## 将\"repo=\$repo1\"改成\"repo=\$repo2\"或其他，以默认调用其他仓库脚本日志\nrepo1='panghu999_jd_scripts' #预设的 panghu999 仓库\nrepo2='JDHelloWorld_jd_scripts' #预设的 JDHelloWorld 仓库\nrepo3='he1pu_JDHelp' #预设的 he1pu 仓库\nrepo4='shufflewzc_faker2' #预设的 shufflewzc 仓库\nrepo=\$repo1 #默认调用 panghu999 仓库脚本日志"
+echo -n "输入你想调用的仓库编号(默认为 4):"
+read -r repoNum
+repoNum=${repoNum:-'4'}
+sed -i "s/\$repo1/\$repo$repoNum/g" $code_shell_path
+
+# 将 code.sh 添加到定时任务
+if [ "$(grep -c code.sh /ql/config/crontab.list)" = 0 ]; then
+    echo "开始添加 task code.sh"
+    # 获取token
+    token=$(cat /ql/config/auth.json | jq --raw-output .token)
+    curl -s -H 'Accept: application/json' -H "Authorization: Bearer $token" -H 'Content-Type: application/json;charset=UTF-8' -H 'Accept-Language: zh-CN,zh;q=0.9' --data-binary '{"name":"格式化更新助力码","command":"bash /ql/config/code.sh &","schedule":"*/10 * * * *"}' --compressed 'http://127.0.0.1:5700/api/crons?t=1626247939659'
+fi
+
+
+# 下载 task_before.sh
+curl -s --connect-timeout 3 https://ghproxy.com/https://raw.githubusercontent.com/Oreomeow/VIP/main/Scripts/sh/Helpcode2.8/task_before.sh > $task_before_shell_path
+
+# 判断是否下载成功
+task_before_size=$(ls -l $task_before_shell_path | awk '{print $5}')
+if (( $(echo "${task_before_size} < 100" | bc -l) )); then
+    echo "task_before.sh 下载失败"
+    exit 0
+fi
+
+
+# 将 bot 添加到定时任务
+if [ "$(grep -c bot /ql/config/crontab.list)" = 0 ]; then
+    echo "开始添加 task ql bot"
+    # 获取token
+    token=$(cat /ql/config/auth.json | jq --raw-output .token)
+    curl -s -H 'Accept: application/json' -H "Authorization: Bearer $token" -H 'Content-Type: application/json;charset=UTF-8' -H 'Accept-Language: zh-CN,zh;q=0.9' --data-binary '{"name":"拉取机器人","command":"ql bot","schedule":"13 14 * * *"}' --compressed 'http://127.0.0.1:5700/api/crons?t=1626247933219'
+fi
